@@ -18,7 +18,29 @@ function render(s) {
   $('c-clip').textContent = (c.COPY_ATTEMPT || 0) + (c.PASTE_ATTEMPT || 0) + (c.CUT_ATTEMPT || 0);
   $('allowlist').textContent = (s.allowlist || []).join(', ');
   $('stop').hidden = !s.active;
+  renderAgent(s.agent || { status: 'not_used' });
   $('test').hidden = !!s.active;
+}
+const AGENT_PILL = { not_used: ['Not used', 'idle'], connecting: ['Connecting…', 'warn'], monitoring: ['Monitoring', 'active'], idle: ['Idle', 'idle'],
+  ended: ['Ended', 'idle'], not_running: ['Not running', 'warn'], error: ['Problem', 'err'] };
+function renderAgent(a) {
+  const [label, cls] = AGENT_PILL[a.status] || [a.status, 'idle'];
+  const pill = $('agent-status');
+  pill.textContent = label; pill.className = 'pill ' + cls;
+  $('agent-message').textContent = a.status === 'not_used' ? 'Not requested for this session.' : (a.message || '');
+  const mons = $('agent-monitors');
+  mons.replaceChildren(...Object.entries(a.monitors || {}).map(([k, v]) => {
+    const el = document.createElement('span');
+    el.textContent = `${k}: ${v}`;
+    el.className = v === 'active' ? 'on' : v === 'error' ? 'err' : '';
+    return el;
+  }));
+  const alerts = $('agent-alerts');
+  alerts.replaceChildren(...(a.alerts || []).slice().reverse().map((x) => {
+    const li = document.createElement('li');
+    li.textContent = `${new Date(x.at).toLocaleTimeString()} · ${x.text}`; // textContent only — never HTML
+    return li;
+  }));
 }
 const refresh = () => chrome.runtime.sendMessage({ type: 'POPUP_STATUS' }, render);
 $('retry').onclick = () => chrome.runtime.sendMessage({ type: 'POPUP_RETRY' }, refresh);

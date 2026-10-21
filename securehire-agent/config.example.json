@@ -1,0 +1,17 @@
+{
+  "local_port": 47615,
+  "allowed_extension_origins": ["chrome-extension://mlfnbgkkkndpcbmleppgablahalkeedn"],
+  "allowed_api_base_urls": ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:4000", "http://127.0.0.1:4000"],
+  "heartbeat_seconds": 15,
+  "process_poll_seconds": 2.0,
+  "window_poll_seconds": 1.5,
+  "usb_reconcile_seconds": 5.0,
+  "usb_report_peripherals": true,
+  "usb_storage_review": true,
+  "allowlisted_processes": ["narrator.exe", "nvda.exe", "magnify.exe", "osk.exe", "jfw.exe", "zoomtext.exe", "securehire-agent.exe"],
+  "small_window_max_screen_percent": 35,
+  "overlap_min_percent": 20,
+  "correlation_window_seconds": 120,
+  "correlation_min_categories": 2,
+  "correlation_cooldown_seconds": 300
+}

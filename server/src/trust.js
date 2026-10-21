@@ -35,6 +35,7 @@ export const DEFAULT_WEIGHTS = [
   ['multiple_faces', 'assessment', 'risk', -10, 'More than one face in frame'],
   ['assessment_integrity_review', 'assessment', 'risk', -10, 'Repeated tab/focus changes during assessment'],
   ['assessment_behavior_anomaly', 'assessment', 'risk', -10, 'Unusual answer timing pattern'],
+  ['desktop_activity_review', 'assessment', 'risk', -10, 'Desktop activity needs review (USB / app / overlay window)'],
   ['monitoring_event', 'assessment', 'context', 0, 'Assessment monitoring event'],
   ['ip_change', 'assessment', 'context', 0, 'IP address changed'],
   ['location_change', 'assessment', 'context', 0, 'Location changed between checkpoints'],

@@ -19,6 +19,9 @@ export function runRetention() {
   out.locationEvents = q.run('DELETE FROM location_events WHERE created_at < ?', cutoff(days.location)).changes;
   out.monitoringEvents = q.run('DELETE FROM monitoring_events WHERE created_at < ?', cutoff(days.monitoring)).changes;
   out.faceChecks = q.run('DELETE FROM face_checks WHERE created_at < ?', cutoff(days.faceChecks)).changes;
+  // Desktop agent observations follow the monitoring retention period.
+  out.securityEvents = q.run('DELETE FROM security_events WHERE received_at < ?', cutoff(days.monitoring)).changes;
+  out.agentStatus = q.run('DELETE FROM agent_status WHERE last_heartbeat_at < ?', cutoff(days.monitoring)).changes;
   const total = Object.values(out).reduce((a, b) => a + b, 0);
   if (total) q.run('INSERT INTO audit_logs (actor_id, actor_role, action, target, details, created_at) VALUES (NULL, ?, ?, ?, ?, ?)', 'system', 'retention.delete', 'retention', JSON.stringify(out), now());
   return { deleted: out, policyDays: days, ranAt: now() };

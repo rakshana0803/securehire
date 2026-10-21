@@ -7,6 +7,7 @@ import { addSignal } from '../trust.js';
 import { observeIp } from '../services/network.js';
 import { logEvent } from '../services/continuity.js';
 import { toStaff } from '../realtime.js';
+import { desktopPolicy, onSessionEnded } from '../services/desktopSecurity.js';
 
 const r = Router();
 
@@ -52,7 +53,7 @@ async function ingestEvent(req, session, ev, source) {
 r.get('/assessments', requireAuth('candidate'), ah(async (req, res) => {
   const list = q.all('SELECT a.id, a.title, a.duration_sec, (SELECT COUNT(*) FROM assessment_questions WHERE assessment_id = a.id) AS questions FROM assessments a ORDER BY a.id');
   const sessions = q.all('SELECT id, assessment_id, status, score, max_score, started_at, ended_at FROM assessment_sessions WHERE user_id = ? ORDER BY started_at DESC', req.user.id);
-  res.json({ assessments: list, sessions, allowlist: getSetting('assessment_allowlist', []) });
+  res.json({ assessments: list, sessions, allowlist: getSetting('assessment_allowlist', []), desktopAgent: desktopPolicy() });
 }));
 
 r.post('/assessment/sessions', requireAuth('candidate'), ah(async (req, res) => {
@@ -68,8 +69,10 @@ r.post('/assessment/sessions', requireAuth('candidate'), ah(async (req, res) => 
   q.run("UPDATE assessment_sessions SET status = 'abandoned', ended_at = ? WHERE user_id = ? AND status = 'active'", now(), req.user.id);
   const id = randomId('AS-', 6);
   const token = randomToken(32);
-  q.run(`INSERT INTO assessment_sessions (id, user_id, assessment_id, token_hash, status, consent, started_at, expires_at, extension_version)
-         VALUES (?,?,?,?,?,?,?,?,?)`, id, req.user.id, a.id, sha256(token), 'active', 1, now(), new Date(Date.now() + (a.duration_sec + 900) * 1000).toISOString(), extensionVersion || null);
+  // Separate token for the optional Windows desktop agent: scoped to this session, accepted only by /api/agent/*.
+  const agentToken = randomToken(32);
+  q.run(`INSERT INTO assessment_sessions (id, user_id, assessment_id, token_hash, agent_token_hash, status, consent, started_at, expires_at, extension_version)
+         VALUES (?,?,?,?,?,?,?,?,?,?)`, id, req.user.id, a.id, sha256(token), sha256(agentToken), 'active', 1, now(), new Date(Date.now() + (a.duration_sec + 900) * 1000).toISOString(), extensionVersion || null);
   const ip = await observeIp(req, req.user.id, 'assessment', id);
   q.run('UPDATE assessment_sessions SET ip_hash = (SELECT ip_hash FROM ip_observations WHERE user_id = ? ORDER BY id DESC LIMIT 1) WHERE id = ?', req.user.id, id);
   logEvent({ sessionId: id, userId: req.user.id, stage: 'assessment', source: 'server', type: 'SESSION_START', details: { extensionVersion: extensionVersion || null, ip: ip.ipMasked } });
@@ -77,7 +80,7 @@ r.post('/assessment/sessions', requireAuth('candidate'), ah(async (req, res) => 
   audit(req, 'assessment.start', `session:${id}`);
   toStaff({ type: 'session', action: 'started', sessionId: id, candidateId: req.user.id });
   // sessionToken is short-lived and scoped to this one session; it is handed to the extension, never a shared key.
-  res.status(201).json({ sessionId: id, sessionToken: token, expiresAt: new Date(Date.now() + (a.duration_sec + 900) * 1000).toISOString(), assessment: { id: a.id, title: a.title, durationSec: a.duration_sec }, questions });
+  res.status(201).json({ sessionId: id, sessionToken: token, agentToken, desktopAgentPolicy: desktopPolicy(), expiresAt: new Date(Date.now() + (a.duration_sec + 900) * 1000).toISOString(), assessment: { id: a.id, title: a.title, durationSec: a.duration_sec }, questions });
 }));
 
 // Page-side events (face, camera, fullscreen from the page itself) — authenticated with the candidate session.
@@ -148,6 +151,7 @@ r.post('/assessment/sessions/:id/submit', requireAuth('candidate'), ah(async (re
   q.run("UPDATE assessment_sessions SET status = 'submitted', ended_at = ?, score = ?, max_score = ?, answers = ?, timings = ? WHERE id = ?",
     now(), score, max, json(answers), json(timings), s.id);
   logEvent({ sessionId: s.id, userId: s.user_id, stage: 'assessment', source: 'server', type: 'SESSION_END', details: { autoSubmitted, score, max } });
+  onSessionEnded(s.id);
 
   // Behaviour analytics (rule-based). High performance alone is never treated as cheating.
   const times = detail.map(d => Number(timings[d.questionId]) || null).filter(Boolean);

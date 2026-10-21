@@ -16,12 +16,13 @@ import assessmentRoutes from './routes/assessment.js';
 import interviewRoutes from './routes/interview.js';
 import offerRoutes from './routes/offer.js';
 import recruiterRoutes from './routes/recruiter.js';
+import securityRoutes from './routes/security.js';
 
 export function initDefaults() {
   ensureWeights();
   if (!getSetting('retention_days')) setSetting('retention_days', DEFAULT_RETENTION);
   if (!getSetting('assessment_allowlist')) setSetting('assessment_allowlist', ['http://localhost:5173', 'http://127.0.0.1:5173']);
-  if (!getSetting('monitoring_policy')) setSetting('monitoring_policy', { faceCheckSeconds: 10, focusEventsForReview: 3, focusWindowSeconds: 120, requireExtension: true, requireCameraMic: true });
+  if (!getSetting('monitoring_policy')) setSetting('monitoring_policy', { faceCheckSeconds: 10, focusEventsForReview: 3, focusWindowSeconds: 120, requireExtension: true, requireCameraMic: true, requireDesktopAgent: false });
   if (!getSetting('required_checks')) setSetting('required_checks', {
     enterprise: ['email', 'aadhaar', 'liveness', 'resume', 'assessment', 'interview'],
     contractor: ['email', 'aadhaar', 'liveness', 'resume'],
@@ -75,6 +76,7 @@ export function createApp() {
   app.use('/api', interviewRoutes);
   app.use('/api', offerRoutes);
   app.use('/api', recruiterRoutes);
+  app.use('/api', securityRoutes);
   app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
 
   // Serve the built web app (single-service deployment option)

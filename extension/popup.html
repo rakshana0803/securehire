@@ -26,6 +26,13 @@
     <div class="stat"><span class="label">Copy / paste</span><strong id="c-clip">0</strong></div>
   </section>
 
+  <section class="card agent" id="agent-card">
+    <div class="row"><span class="label">Desktop agent</span><span id="agent-status" class="pill idle">Not used</span></div>
+    <p id="agent-message" class="muted small"></p>
+    <div id="agent-monitors" class="monitors"></div>
+    <ul id="agent-alerts" class="alerts"></ul>
+  </section>
+
   <section class="actions">
     <button id="retry" class="secondary">Retry sync</button>
     <button id="test" class="secondary">Local test session</button>
@@ -34,6 +41,7 @@
 
   <footer>
     <p>Monitoring runs only after you consent on a SecureHire assessment page. Clipboard contents, keystrokes and other tabs' URLs are never collected.</p>
+    <p>The optional desktop agent (Windows) records USB connections, newly started apps and always-on-top window metadata during the assessment — never files, keystrokes or the screen. Items marked for review are observations for a person to check, not findings.</p>
     <p class="muted">Allowlist: <span id="allowlist"></span></p>
   </footer>
   <script src="popup.js"></script>

@@ -23,7 +23,7 @@ export default function Overview() {
         <Stat label="Candidates" value={k.totalCandidates} icon={<Users className="h-4 w-4" />} sub={`${k.liveInterviews} live interview${k.liveInterviews === 1 ? '' : 's'}`} />
         <Stat label="Average trust" value={k.averageTrust} icon={<GaugeIcon className="h-4 w-4" />} tone={scoreTone(k.averageTrust)} sub="Weighted across completed stages" />
         <Stat label="Open review items" value={k.openAlerts} icon={<ShieldAlert className="h-4 w-4" />} tone={k.openAlerts ? 'review' : undefined} sub={`${k.openAppeals} candidate response${k.openAppeals === 1 ? '' : 's'} waiting`} />
-        <Stat label="Active assessments" value={k.activeAssessments} icon={<Radio className="h-4 w-4" />} sub={<Link to="/recruiter/live" className="link">Open live monitoring</Link>} />
+        <Stat label="Active assessments" value={k.activeAssessments} icon={<Radio className="h-4 w-4" />} sub={<><Link to="/recruiter/live" className="link">Open live monitoring</Link>{k.desktopReview ? <span className="text-review"> · {k.desktopReview} desktop item{k.desktopReview === 1 ? '' : 's'} to review</span> : null}</>} />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">

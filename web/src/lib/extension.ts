@@ -22,8 +22,15 @@ export function sendToExtension<T = any>(message: any, timeoutMs = 1500): Promis
   });
 }
 
+export type AgentState = {
+  status: 'not_used' | 'connecting' | 'monitoring' | 'idle' | 'ended' | 'not_running' | 'error';
+  message?: string; monitors?: Record<string, string>; connection?: string | null; reviewItems?: number; alerts?: { at: string; text: string }[];
+};
 export const pingExtension = () => sendToExtension<{ ok: boolean; version: string; active?: boolean }>({ type: 'PING' });
-export const startExtensionSession = (p: { sessionId: string; candidateId: number; sessionToken: string; apiBaseUrl: string }) =>
+/** agentToken is optional: when present the extension relays it to the local SecureHire desktop agent (Windows). */
+export const startExtensionSession = (p: { sessionId: string; candidateId: number; sessionToken: string; apiBaseUrl: string; agentToken?: string }) =>
   sendToExtension<{ ok: boolean; error?: string }>({ type: 'START_SESSION', consentGiven: true, ...p }, 3000);
-export const extensionStatus = () => sendToExtension<{ active: boolean; sessionId?: string; counts?: Record<string, number>; backend?: string }>({ type: 'GET_STATUS' });
+export const extensionStatus = () => sendToExtension<{ active: boolean; sessionId?: string; counts?: Record<string, number>; backend?: string; agent?: AgentState }>({ type: 'GET_STATUS' });
+/** Is the desktop agent running on this computer? (asked via the extension; the page itself cannot reach localhost services) */
+export const desktopAgentHealth = () => sendToExtension<{ ok: boolean; reachable: boolean; version?: string; active?: boolean }>({ type: 'AGENT_HEALTH' }, 2500);
 export const endExtensionSession = () => sendToExtension({ type: 'END_SESSION' }, 3000);

@@ -8,6 +8,7 @@ import { interviewSummary } from './interview.js';
 import { buildReport } from '../services/report.js';
 import { semanticStatus } from '../services/semantic.js';
 import { runRetention } from '../services/retention.js';
+import { agentStatusFor, securityCounts } from '../services/desktopSecurity.js';
 
 const r = Router();
 const staff = requireAuth('recruiter', 'admin');
@@ -36,6 +37,7 @@ r.get('/recruiter/overview', staff, ah(async (req, res) => {
       averageTrust: cands.length ? Math.round(cands.reduce((a, c) => a + c.overall, 0) / cands.length) : 0,
       openAlerts: q.get("SELECT COUNT(*) AS n FROM trust_signals WHERE status = 'pending_review'").n,
       activeAssessments: q.get("SELECT COUNT(*) AS n FROM assessment_sessions WHERE status = 'active'").n,
+      desktopReview: q.get("SELECT COUNT(*) AS n FROM security_events WHERE review_status = 'needs_review'").n,
       liveInterviews: q.get("SELECT COUNT(*) AS n FROM interviews WHERE status = 'live'").n,
       openAppeals: q.get("SELECT COUNT(*) AS n FROM appeals WHERE status = 'open'").n,
     },
@@ -53,7 +55,7 @@ r.get('/recruiter/candidates/:id', staff, ah(async (req, res) => {
   const anchor = q.get('SELECT model, liveness, created_at, retention_until, id_photo_descriptor_enc IS NOT NULL AS has_id_photo FROM face_anchors WHERE user_id = ?', id);
   const interviews = q.all('SELECT * FROM interviews WHERE candidate_id = ? ORDER BY id DESC', id).map(iv => ({ ...iv, rubric: parse(iv.rubric), verification: parse(iv.verification), summary: interviewSummary(iv) }));
   const sessions = q.all('SELECT id, assessment_id, status, score, max_score, started_at, ended_at, extension_version FROM assessment_sessions WHERE user_id = ? ORDER BY started_at DESC', id)
-    .map(s => ({ ...s, events: q.all('SELECT id, source, event_type, details, client_ts, created_at FROM monitoring_events WHERE session_id = ? ORDER BY id', s.id).map(e => ({ ...e, details: parse(e.details, {}) })) }));
+    .map(s => ({ ...s, agent: agentStatusFor(s.id), security: securityCounts(s.id), events: q.all('SELECT id, source, event_type, details, client_ts, created_at FROM monitoring_events WHERE session_id = ? ORDER BY id', s.id).map(e => ({ ...e, details: parse(e.details, {}) })) }));
   res.json({
     profile: { id, name: c.name, email: c.email, phone: c.phone, emailVerified: !!c.email_verified, stageIndex: c.stage_index, appliedAt: c.applied_at, appliedEmail: c.applied_email, appliedPhone: c.applied_phone, holdReason: c.hold_reason, isDemo: !!c.is_demo, job: q.get('SELECT title, location FROM jobs WHERE id = ?', c.job_id) },
     scores: computeScores(id),
@@ -117,7 +119,7 @@ r.get('/recruiter/live', staff, ah(async (req, res) => {
     const counts = Object.fromEntries(q.all('SELECT event_type, COUNT(*) AS n FROM monitoring_events WHERE session_id = ? GROUP BY event_type', s.id).map(x => [x.event_type, x.n]));
     const lastFace = q.get('SELECT result, distance, created_at FROM face_checks WHERE session_ref = ? ORDER BY id DESC LIMIT 1', s.id);
     const flags = q.all("SELECT id, label, status FROM trust_signals WHERE session_ref = ? AND status IN ('pending_review','confirmed')", s.id);
-    return { ...s, counts, lastFace, flags };
+    return { ...s, counts, lastFace, flags, agent: agentStatusFor(s.id), security: securityCounts(s.id) };
   });
   const interviews = q.all(`SELECT i.id, i.status, i.room_id, i.scheduled_at, u.name AS candidate_name, i.candidate_id FROM interviews i JOIN users u ON u.id = i.candidate_id WHERE i.status != 'completed' ORDER BY i.scheduled_at`);
   res.json({ sessions, interviews });

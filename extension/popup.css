@@ -22,3 +22,13 @@ button.danger { color: var(--risk); }
 footer { margin-top: 12px; font-size: 11px; }
 footer p { margin: 6px 0 0; }
 .muted { color: var(--muted); }
+.agent { margin-top: 10px; }
+.small { font-size: 11px; margin: 2px 0 0; }
+.monitors { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.monitors span { font-size: 10px; padding: 2px 8px; border-radius: 999px; background: #F1F5F9; color: #475569; }
+.monitors span.on { background: #DCFCE7; color: var(--ok); }
+.monitors span.err { background: #FEE2E2; color: var(--risk); }
+.alerts { list-style: none; padding: 0; margin: 8px 0 0; }
+.alerts li { font-size: 11px; color: var(--ink); border-left: 2px solid var(--warn); padding: 2px 0 2px 8px; margin-top: 4px; }
+.pill.warn { background: #FEF3C7; color: var(--warn); }
+.pill.err { background: #FEE2E2; color: var(--risk); }

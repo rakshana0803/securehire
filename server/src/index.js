@@ -6,6 +6,7 @@ import { warmUp, semanticStatus } from './services/semantic.js';
 import { runRetention } from './services/retention.js';
 import { q } from './db.js';
 import { seedDemo } from './seed.js';
+import { sweepStaleAgents } from './services/desktopSecurity.js';
 
 const app = createApp();
 if (!q.get('SELECT 1 FROM users LIMIT 1')) {
@@ -20,3 +21,5 @@ server.listen(config.port, () => {
 });
 runRetention();
 setInterval(runRetention, 3600_000).unref();
+// Desktop agent: record a transparent AGENT_DISCONNECTED event when heartbeats stop during an active assessment.
+setInterval(() => { try { sweepStaleAgents(); } catch (e) { console.error('[agent-sweep]', e); } }, 15_000).unref();

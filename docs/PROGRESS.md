@@ -34,6 +34,14 @@ Last verified: 9 Oct 2026, on Node 22.22 + headless Chromium (Playwright) with t
 | Assessment runner, timer, auto-submit, scoring, page-level copy/paste/right-click blocking | WORKING | Coding question scored by keyword heuristic |
 | Continuous face monitoring during assessment/interview | WORKING | Every 10 s; flag after 2 consecutive mismatches |
 | Behaviour analytics (fast-correct, uniform timing) | WORKING | Rule-based |
+| Desktop security agent: USB connect/disconnect (Windows) | IMPLEMENTED · logic TESTED · Windows API layer NEEDS WINDOWS TEST | SetupAPI + WM_DEVICECHANGE; salted device hash; storage → review, peripherals → info |
+| Desktop agent: newly launched apps | WORKING | psutil; tested with a real process launch; name + PID only |
+| Desktop agent: potential overlay windows | IMPLEMENTED · rules TESTED · Windows API layer NEEDS WINDOWS TEST | Always-on-top, size, overlap, transparency, capture exclusion; combined signals only |
+| Desktop agent: rules engine, correlation, cooldowns | WORKING | Explainable; info / review only; no scores |
+| Local FastAPI service (loopback, origin/host checks, control token, limits) | WORKING | 127.0.0.1 binding verified |
+| Extension ↔ agent bridge | WORKING (mocked Chrome API tests) | Manual check in desktop Chrome recommended |
+| Backend agent endpoints, heartbeats, disconnect detection, recruiter review | WORKING | 7 new API tests + real end-to-end agent→backend test |
+| Recruiter Desktop security panel | BUILT (tsc + vite clean) | Not visually inspected in a browser during this change |
 | Audio second-speaker detection | NOT IMPLEMENTED | Mic required; VAD/second-speaker model not included |
 | Live 1:1 WebRTC interview + mandatory screen share | WORKING | STUN only — production needs TURN |
 | GPS Map Camera-style overlay (device GPS, IP fallback, live clock) | WORKING | Reverse geocoding via OpenStreetMap Nominatim at runtime |

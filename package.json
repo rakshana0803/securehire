@@ -7,9 +7,14 @@
     "install:all": "npm install && npm --prefix server install && npm --prefix web install",
     "dev": "concurrently -n server,web -c blue,magenta \"npm --prefix server run dev\" \"npm --prefix web run dev\"",
     "seed": "npm --prefix server run seed",
-    "test": "npm --prefix server test",
+    "test": "npm --prefix server test && node --no-warnings --test extension/tests/*.test.mjs",
     "build": "npm --prefix web run build",
-    "start": "npm --prefix server start"
+    "start": "npm --prefix server start",
+    "test:extension": "node --no-warnings --test extension/tests/*.test.mjs",
+    "test:agent": "cd securehire-agent && python -m pytest -q",
+    "agent": "cd securehire-agent && python -m agent.main"
   },
-  "devDependencies": { "concurrently": "^9.1.0" }
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
 }

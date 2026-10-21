@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "SecureHire Assessment Monitor",
   "short_name": "SecureHire",
-  "version": "1.0.0",
-  "description": "Consent-based monitoring for SecureHire assessments: tab, focus, fullscreen and copy/paste attempts. Never reads clipboard contents.",
+  "version": "1.1.0",
+  "description": "Consent-based monitoring for SecureHire assessments: tab, focus, fullscreen and copy/paste attempts, plus a bridge to the optional SecureHire desktop security agent. Never reads clipboard contents.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAykQaA1mV7/bCuON8Z1fWpMlf9jxIzSK1yM5novqmPOATm+Ikdn3DSJnCmd65nfhZCsLMCUo+xqtrycfrudxvU5a7RK0ejX8fpxAhzcn0Y5gkRkWC+wGVIqTnW7yjrEgLOJ7QUnERkM+5DbE6W26PZg1sLn2frVMyUOvSrBfHzOybIRTYIbE7lXXmJ6/k/wcZhu1lO/37wVDJjhlpleUUpP8FphUXyo0tiq1x1x7rI1OeKUHPx/ZOKWfRJfezPRo8vYrDRiiDj547IYQWh7CWzbjnhdosj8kjue3sExiuUsKOoaR6h1xnIPo1RUXYGsZpZQ0AfJJFzkzbRN3mUQr6cQIDAQAB",
   "minimum_chrome_version": "116",
   "permissions": [
@@ -14,7 +14,8 @@
     "http://localhost:5173/*",
     "http://127.0.0.1:5173/*",
     "http://localhost:4000/*",
-    "http://127.0.0.1:4000/*"
+    "http://127.0.0.1:4000/*",
+    "http://127.0.0.1:47615/*"
   ],
   "background": {
     "service_worker": "background.js",

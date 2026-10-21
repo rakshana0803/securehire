@@ -14,7 +14,7 @@ process.env.JWT_SECRET = 'test-jwt'; process.env.AADHAAR_HMAC_KEY = 'test-hmac';
 process.env.ENABLE_SEMANTIC_MODEL = process.env.ENABLE_SEMANTIC_MODEL || 'true';
 
 const { createApp } = await import('../src/app.js');
-const { q } = await import('../src/db.js');
+const { q, db } = await import('../src/db.js');
 const { verhoeffDigit } = await import('../src/security.js');
 const { attachRealtime } = await import('../src/realtime.js');
 const bcrypt = (await import('bcryptjs')).default;
@@ -52,8 +52,12 @@ before(async () => {
   q.run(`INSERT INTO assessment_questions (assessment_id, position, type, prompt, options, answer, points) VALUES (?, 1, 'mcq', 'Q1', '["a","b"]', '1', 1)`, a);
   q.run(`INSERT INTO assessment_questions (assessment_id, position, type, prompt, options, answer, points) VALUES (?, 2, 'mcq', 'Q2', '["a","b"]', '0', 1)`, a);
 });
-after(() => { server?.close(); fs.rmSync(tmp, { recursive: true, force: true }); });
-
+   after(() => {
+     server?.closeAllConnections?.();
+     server?.close();
+     try { db.close(); } catch {}
+     try { fs.rmSync(tmp, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }); } catch {}
+   });
 async function registerCandidate(email, name = 'Test Candidate') {
   const c = client();
   const r = await c.post('/api/auth/register', { name, email, password: 'Passw0rd!', phone: '+919999988888' });

@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Puzzle, RefreshCw, Camera, Mic, Sun, Users, Plug, Server, Clock, ShieldCheck, ArrowRight, ArrowLeft, CheckCircle2, AlertTriangle, Download } from 'lucide-react';
+import { Puzzle, RefreshCw, Camera, Mic, Sun, Users, Plug, Server, Clock, ShieldCheck, ArrowRight, ArrowLeft, CheckCircle2, AlertTriangle, Download, Monitor } from 'lucide-react';
 import { Card, PageHeader, Button, Callout, Pill, useToast, Skeleton, Textarea, cx } from '../../components/ui';
 import { CameraView, Check, type LiveState } from '../../components/camera';
 import { ConsentModal } from '../../components/consent';
 import { useCandidate } from '../../lib/candidate';
 import { api } from '../../lib/api';
-import { pingExtension, startExtensionSession, endExtensionSession, extensionStatus, EXTENSION_ID } from '../../lib/extension';
+import { pingExtension, startExtensionSession, endExtensionSession, extensionStatus, desktopAgentHealth, EXTENSION_ID, type AgentState } from '../../lib/extension';
 import { describe, stopStream, loadFaceApi } from '../../lib/ai/face';
 import { useStageLocation } from '../../components/location';
 
@@ -22,6 +22,7 @@ export default function Assessment() {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [live, setLive] = useState<LiveState | null>(null);
   const [server, setServer] = useState<boolean | null>(null);
+  const [agent, setAgent] = useState<{ reachable: boolean; version?: string } | null>(null);
   const [session, setSession] = useState<any>(null);
   const [result, setResult] = useState<any>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -33,6 +34,8 @@ export default function Assessment() {
   useEffect(() => () => stopStream(stream), [stream]);
 
   const checkExtension = async () => { setExt('checking'); const r = await pingExtension(); setExt(r?.ok ? r : false); };
+  // The optional Windows desktop agent is reached through the extension (web pages cannot call localhost services).
+  const checkAgent = async () => { setAgent(null); const r = await desktopAgentHealth(); setAgent({ reachable: !!r?.reachable, version: r?.version }); };
   useEffect(() => { if (phase === 'extension') checkExtension(); }, [phase]);
 
   const openChecks = async () => {
@@ -41,6 +44,7 @@ export default function Assessment() {
       const s = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 }, audio: true });
       setStream(s); setPhase('checks'); loadFaceApi();
       api.get('/api/health').then(() => setServer(true)).catch(() => setServer(false));
+      checkAgent();
     } catch { setErr('Camera and microphone are required for this assessment. Allow access in your browser settings and try again.'); }
   };
 
@@ -49,7 +53,7 @@ export default function Assessment() {
     try {
       const s = await api.post('/api/assessment/sessions', { assessmentId: selected.id, consent: true, extensionVersion: ext?.version });
       if (ext?.ok) {
-        const r = await startExtensionSession({ sessionId: s.sessionId, candidateId: data.profile.id, sessionToken: s.sessionToken, apiBaseUrl: location.origin });
+        const r = await startExtensionSession({ sessionId: s.sessionId, candidateId: data.profile.id, sessionToken: s.sessionToken, apiBaseUrl: location.origin, agentToken: s.agentToken });
         if (!r?.ok) toast(`Extension did not start monitoring: ${r?.error || 'no response'}`, 'review');
       }
       setSession(s); setPhase('running');
@@ -64,7 +68,9 @@ export default function Assessment() {
 
   const camOk = !!stream?.getVideoTracks()[0]?.enabled, micOk = !!stream?.getAudioTracks()[0];
   const lightOk = (live?.light ?? 0) >= 60, faceOk = live?.faces === 1, extOk = !!ext?.ok || extBypass;
-  const allOk = camOk && micOk && lightOk && faceOk && extOk && server === true;
+  const agentRequired = !!list?.desktopAgent?.required;
+  const agentOk = !!agent?.reachable || !agentRequired;
+  const allOk = camOk && micOk && lightOk && faceOk && extOk && server === true && agentOk;
 
   return (
     <div>
@@ -86,7 +92,7 @@ export default function Assessment() {
           </div>
           <Card title="What is monitored">
             <ul className="space-y-2.5 text-sm text-body">
-              {['Switching tabs or windows, leaving fullscreen', 'Copy, paste and right-click attempts (never what you copied)', 'Your face is compared with your identity anchor every 10 seconds', 'Your network address at checkpoints (changes are context only)'].map((t) => <li key={t} className="flex gap-2"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />{t}</li>)}
+              {['Switching tabs or windows, leaving fullscreen', 'Copy, paste and right-click attempts (never what you copied)', 'Your face is compared with your identity anchor every 10 seconds', 'Your network address at checkpoints (changes are context only)', 'If the SecureHire desktop agent is running (Windows): USB devices connected, apps started and always-on-top windows — metadata only, never files, keystrokes or your screen'].map((t) => <li key={t} className="flex gap-2"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />{t}</li>)}
             </ul>
             <p className="mt-4 text-xs text-muted">Notifications, accessibility tools or a flaky connection can cause events — a person reviews context before anything is decided.</p>
           </Card>
@@ -126,6 +132,12 @@ export default function Assessment() {
             <Check ok={live ? faceOk : null} label="Exactly one face" icon={<Users className="h-3.5 w-3.5" />} detail={live && live.faces !== 1 ? `${live.faces} faces detected` : undefined} />
             <Check ok={extOk} label="Extension connected" icon={<Plug className="h-3.5 w-3.5" />} detail={extBypass ? 'Demo bypass — page-level monitoring only' : undefined} />
             <Check ok={server} label="Server connected" icon={<Server className="h-3.5 w-3.5" />} />
+            <Check ok={agent === null ? null : agent.reachable ? true : agentRequired ? false : null}
+              label={`Desktop security agent${agentRequired ? '' : ' (optional)'}`} icon={<Monitor className="h-3.5 w-3.5" />}
+              detail={agent === null ? 'Checking…' : agent.reachable ? `Running (v${agent.version}) — it will show that monitoring is active` : ext?.ok
+                ? `Not detected. ${agentRequired ? 'Required by this employer: start “SecureHire Security Agent” on this Windows PC, then' : 'If your employer provided it, start “SecureHire Security Agent”, then'} re-check.`
+                : 'Needs the SecureHire extension.'} />
+            {agent && !agent.reachable && ext?.ok && <button className="link mt-1 text-xs" onClick={checkAgent}>Re-check desktop agent</button>}
             {err && <div className="mt-3"><Callout tone="risk">{err}</Callout></div>}
             <Button className="mt-5 w-full" disabled={!allOk} onClick={start}>Start assessment</Button>
           </Card>
@@ -134,8 +146,8 @@ export default function Assessment() {
       {err && phase !== 'checks' && <div className="mt-4"><Callout tone="risk">{err}</Callout></div>}
 
       <ConsentModal open={consentOpen} onClose={() => setConsentOpen(false)} onAgree={openChecks} title="Consent for assessment monitoring" agreeLabel="I agree — start checks"
-        what={<>During this session only: tab visibility, window focus, fullscreen exits, copy/paste/right-click attempts (never clipboard contents), periodic face comparison with your identity anchor, and your IP address at checkpoints.</>}
-        why="To help ensure the assessment reflects your own work. Events are context for a human reviewer, not automatic findings."
+        what={<>During this session only: tab visibility, window focus, fullscreen exits, copy/paste/right-click attempts (never clipboard contents), periodic face comparison with your identity anchor, and your IP address at checkpoints. If the SecureHire desktop agent is running on your Windows PC, it also records USB devices being connected or removed (device type only — never their contents), applications started during the test (name only), and the size, position and style of always-on-top windows. It never records keystrokes, passwords, files, window contents or screenshots, and it shows a visible status window the whole time.</>}
+        why="To help ensure the assessment reflects your own work. Events are context for a human reviewer, not automatic findings. Accessibility tools (screen readers, magnifiers) and ordinary peripherals are expected and are not treated as suspicious."
         retention="Monitoring events are kept for 180 days (employer policy) and then deleted." />
     </div>
   );
@@ -150,6 +162,7 @@ function Runner({ session, stream, extActive, onDone }: { session: any; stream: 
   const [left, setLeft] = useState(session.assessment.durationSec);
   const [face, setFace] = useState<any>(null);
   const [extCounts, setExtCounts] = useState<any>(null);
+  const [agentState, setAgentState] = useState<AgentState | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const toast = useToast();
@@ -207,7 +220,7 @@ function Runner({ session, stream, extActive, onDone }: { session: any; stream: 
     };
     const first = setTimeout(tick, 2500);
     const t = setInterval(tick, 10_000);
-    const s = setInterval(async () => { if (extActive) setExtCounts((await extensionStatus())?.counts || null); }, 5000);
+    const s = setInterval(async () => { if (extActive) { const st = await extensionStatus(); setExtCounts(st?.counts || null); setAgentState(st?.agent || null); } }, 5000);
     return () => { alive = false; clearTimeout(first); clearInterval(t); clearInterval(s); };
   }, [session.sessionId, extActive]);
 
@@ -248,6 +261,9 @@ function Runner({ session, stream, extActive, onDone }: { session: any; stream: 
         <div className="space-y-1 px-3 py-2 text-xs">
           <div className="flex items-center gap-2"><span className={cx('h-2 w-2 rounded-full', faceTone === 'ok' ? 'bg-ok' : faceTone === 'review' ? 'bg-review' : faceTone === 'warn' ? 'bg-warn' : 'bg-neutral')} /><span className="text-ink">{!face ? 'Checking identity…' : face.result === 'match' ? 'Identity verified' : face.result === 'no_face' ? 'Face not visible' : face.result === 'multiple_faces' ? 'Multiple faces' : face.result === 'uncertain' ? 'Re-checking…' : 'Identity mismatch'}</span></div>
           {extCounts && <p className="text-muted">Events: {Object.entries(extCounts).filter(([k]) => !k.startsWith('SESSION')).reduce((a, [, n]: any) => a + n, 0)}</p>}
+          {agentState && agentState.status !== 'not_used' && (
+            <p className="flex items-center gap-1.5 text-muted"><Monitor className="h-3 w-3" />Desktop agent: {agentState.status === 'monitoring' ? 'monitoring' : agentState.status === 'not_running' ? 'not running' : agentState.status === 'connecting' ? 'connecting…' : agentState.status}</p>
+          )}
         </div>
       </div>
     </div>

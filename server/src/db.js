@@ -216,6 +216,55 @@ if (!db.prepare('SELECT 1 FROM schema_migrations WHERE version = 1').get()) {
 }
 
 // ---------------------------------------------------------------------------
+// Migration v2 — Desktop security agent (USB / app launch / overlay-window monitoring).
+// Idempotent: safe to run on every start, including on databases created before v2.
+// ---------------------------------------------------------------------------
+const hasColumn = (table, col) => db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === col);
+if (!hasColumn('assessment_sessions', 'agent_token_hash')) {
+  // A second session-scoped token, separate from the extension's, handed to the local desktop agent.
+  db.exec('ALTER TABLE assessment_sessions ADD COLUMN agent_token_hash TEXT');
+}
+db.exec(`
+CREATE TABLE IF NOT EXISTS security_events (
+  id INTEGER PRIMARY KEY,
+  session_id TEXT NOT NULL REFERENCES assessment_sessions(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  source TEXT NOT NULL CHECK (source IN ('agent','server')),
+  category TEXT NOT NULL CHECK (category IN ('usb','process','window','correlation','agent')),
+  event_type TEXT NOT NULL,
+  priority TEXT NOT NULL CHECK (priority IN ('info','review')),
+  -- informational → needs_review → reviewed | dismissed | confirmed_violation (only a human sets the last three)
+  review_status TEXT NOT NULL CHECK (review_status IN ('informational','needs_review','reviewed','dismissed','confirmed_violation')),
+  rule_id TEXT,
+  explanation TEXT NOT NULL,
+  details TEXT,
+  idempotency_key TEXT UNIQUE,
+  client_ts TEXT,
+  received_at TEXT NOT NULL,
+  reviewed_by INTEGER REFERENCES users(id),
+  review_reason TEXT,
+  reviewed_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_secevents_session ON security_events(session_id, received_at);
+CREATE INDEX IF NOT EXISTS idx_secevents_status ON security_events(review_status);
+
+CREATE TABLE IF NOT EXISTS agent_status (
+  session_id TEXT PRIMARY KEY REFERENCES assessment_sessions(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  agent_version TEXT,
+  platform TEXT,
+  state TEXT NOT NULL,           -- connected | disconnected | stopped
+  monitors TEXT,                 -- {"usb":"active","process":"active","window":"unsupported"}
+  connected_at TEXT NOT NULL,
+  last_heartbeat_at TEXT NOT NULL,
+  disconnected_at TEXT
+);
+`);
+if (!db.prepare('SELECT 1 FROM schema_migrations WHERE version = 2').get()) {
+  db.prepare('INSERT INTO schema_migrations (version, applied_at) VALUES (2, ?)').run(new Date().toISOString());
+}
+
+// ---------------------------------------------------------------------------
 // Tiny query helpers
 // ---------------------------------------------------------------------------
 const cache = new Map();

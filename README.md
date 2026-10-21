@@ -26,7 +26,16 @@ Open **http://localhost:5173**.
 
 Or click **Apply as candidate** to run the live flow with your own camera.
 
-Other commands: `npm test` (API test suite) · `npm run seed` (reset DB to demo state) · `npm run build` (production web build).
+Other commands: `npm test` (API + extension test suites) · `npm run test:agent` (desktop agent, needs Python) · `npm run seed` (reset DB to demo state) · `npm run build` (production web build).
+
+### Desktop security agent (Windows, optional): AI overlay & USB monitoring
+Observes USB connections, newly launched apps and potentially suspicious always-on-top / overlay windows **during an assessment only**, and reports explainable observations to the recruiter's **Desktop security** panel (Live monitoring and the candidate page). Nothing is a verdict: only a reviewer can record a policy violation, with a written reason.
+
+```bat
+cd securehire-agent
+start-agent.bat            :: or: pip install -r requirements.txt && python -m agent.main
+```
+Reload the extension (v1.1.0 adds the agent bridge), then start an assessment: the pre-check shows the agent, and monitoring starts automatically after consent. To make the agent mandatory, set `monitoring_policy.requireDesktopAgent: true` in admin settings. Full details, rules and limitations: [`securehire-agent/README.md`](securehire-agent/README.md).
 
 ### Load the Chrome extension
 1. Open `chrome://extensions`, enable **Developer mode**.
@@ -51,7 +60,8 @@ securehire/
 ├── server/        Express API · node:sqlite · WebSockets (live updates + WebRTC signaling) · mock providers · AI resume engine
 ├── web/           React + TypeScript + Vite + Tailwind · in-browser face models · WebRTC interview room
 │   └── public/models/   vendored pretrained weights (MediaPipe + face-api) — works offline
-├── extension/     SecureHire Assessment Monitor (Chrome MV3)
+├── extension/     SecureHire Assessment Monitor (Chrome MV3) · tests/ (agent bridge)
+├── securehire-agent/  Python Windows desktop security agent + loopback FastAPI service
 └── docs/          SPEC.md · PROGRESS.md (feature verification table) · DEMO_SCRIPT.md · sample-resumes/
 ```
 

@@ -5,6 +5,7 @@ import { Card, PageHeader, Button, Pill, Tabs, Skeleton, Modal, Field, Input, Te
 import { TrustScoreCard, StageStepper, StageScoreGrid, ScoreHistoryChart, SignalTable, ScoreDisclaimer, Evidence } from '../../components/trust';
 import { ResumeReport } from '../candidate/Resume';
 import { ReviewModal } from './shared';
+import { SecurityCard } from './SecurityPanel';
 import { api, fmtDate, STAGE_LABELS, timeAgo, humanize } from '../../lib/api';
 import { useRealtime } from '../../lib/realtime';
 
@@ -16,7 +17,7 @@ export default function CandidateDetail() {
   const [modal, setModal] = useState<string | null>(null);
   const toast = useToast();
   const nav = useNavigate();
-  useRealtime((m) => { if ((m.type === 'trust' || m.type === 'monitoring') && String(m.candidateId ?? m.event?.userId) === String(id)) reload(); }, [id]);
+  useRealtime((m) => { if ((m.type === 'trust' || m.type === 'monitoring' || m.type === 'security' || m.type === 'agent') && String(m.candidateId ?? m.event?.userId) === String(id)) reload(); }, [id]);
   if (!data) return <div className="space-y-4"><Skeleton className="h-32" /><Skeleton className="h-72" /></div>;
   const p = data.profile, s = data.scores;
   const flagged: Record<string, number> = {};
@@ -149,11 +150,21 @@ function AssessmentTab({ data }: { data: any }) {
               </div>
               <div className="max-h-96 overflow-y-auto pr-2"><EventTimeline events={s.events} /></div>
             </div>
+            {(s.agent?.state !== 'not_connected' || s.security?.total > 0) && (
+              <div className="mt-6 border-t border-divider pt-5"><SecurityCardInline sessionId={s.id} needsReview={s.security?.needsReview || 0} /></div>
+            )}
           </Card>
         );
       })}
       <Card title="Face checks during assessments" pad={false}><FaceChecks checks={data.faceChecks.filter((c: any) => c.stage === 'assessment')} /></Card>
     </div>
+  );
+}
+
+function SecurityCardInline({ sessionId, needsReview }: { sessionId: string; needsReview: number }) {
+  const [open, setOpen] = useState(needsReview > 0);
+  return open ? <SecurityCard sessionId={sessionId} /> : (
+    <button onClick={() => setOpen(true)} className="link text-sm">Show desktop security timeline{needsReview ? ` (${needsReview} to review)` : ''}</button>
   );
 }
 
